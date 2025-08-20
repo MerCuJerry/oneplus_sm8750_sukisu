@@ -11,7 +11,8 @@ static int __init hmbird_patch_init(void)
         pr_info("hmbird_patch: version_type node not found\n");
         return 0;
     }
-
+    
+    const char *type;
     int ret = of_property_read_string(ver_np, "type", &type);
     if (ret) {
         pr_info("hmbird_patch: type property not found\n");
@@ -19,7 +20,6 @@ static int __init hmbird_patch_init(void)
         return 0;
     }
 
-    const char *type;
     if (strcmp(type, "HMBIRD_OGKI")) {
         of_node_put(ver_np);
         return 0;
