@@ -50,7 +50,7 @@ jobs:
           remove-codeql: 'true'
 
       - uses: actions/checkout@v5
-      
+
       - name: Configure Git
         run: |
          git config --global user.name ${{ github.actor }}
@@ -227,13 +227,13 @@ jobs:
       - name: Build Kernel
         working-directory: ./kernel_workspace/kernel_platform/common
         env:
-            KBUILD_BUILD_TIMESTAMP: "${{ github.event.inputs.KERNEL_TIME }}"
-            PATH: "${{ env.PATH }}:${{ github.workspace }}/kernel_workspace/kernel_platform/prebuilts/clang/host/linux-x86/clang-r510928/bin:/usr/lib/ccache"
+            KBUILD_BUILD_TIMESTAMP: ${{ github.event.inputs.KERNEL_TIME }}
             args: |+
                 LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang
                 RUSTC=../../prebuilts/rust/linux-x86/1.73.0b/bin/rustc PAHOLE=../../prebuilts/kernel-build-tools/linux-x86/bin/pahole
                 LD=ld.lld  HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS_PERF+=-O3
         run: |
+          export PATH=$PATH:$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts/clang/host/linux-x86/clang-r510928/bin:/usr/lib/ccache
           make -j$(nproc --all) ${args} gki_defconfig all
           
       - name: Apply Linux Patch
