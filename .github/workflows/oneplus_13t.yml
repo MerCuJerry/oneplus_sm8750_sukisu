@@ -145,7 +145,7 @@ jobs:
 
  
       - name: Apply lz4kd Patches
-        if: ${{inputs.enable_feature_lz4kd }}
+        if: ${{ inputs.enable_feature_lz4kd }}
         working-directory: ./kernel_workspace/kernel_platform/common
         run: |
             cp ../../SukiSU_patch/other/zram/zram_patch/6.6/lz4kd.patch ./
@@ -199,7 +199,7 @@ jobs:
           git add -A && git commit -a -m "BUILD Kernel"
       
       - name: Add KPM Configuration Settings
-        if: ${{inputs.enable_feature_kpm }}
+        if: ${{ inputs.enable_feature_kpm }}
         working-directory: ./kernel_workspace/kernel_platform
         run: |
           echo "CONFIG_KPM=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -216,7 +216,7 @@ jobs:
          sudo sed -i 's/-4k/${{ github.event.inputs.KERNEL_SUFFIX }}/g' ./common/arch/arm64/configs/gki_defconfig
 
       - name: Add sched_ext
-        if: ${{inputs.enable_feature_sched_ext }}
+        if: ${{ inputs.enable_feature_sched_ext }}
         working-directory: ./kernel_workspace/kernel_platform
         run: |
             git clone https://github.com/HanKuCha/sched_ext.git
@@ -237,19 +237,20 @@ jobs:
           make -j$(nproc --all) ${args} gki_defconfig all
           
       - name: Apply Linux Patch
-        if: ${{inputs.enable_feature_kpm }}
+        if: ${{ inputs.enable_feature_kpm }}
         working-directory: kernel_workspace/kernel_platform/common/out/arch/arm64/boot
         run: |
-         curl -LO https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.12.0/patch_linux
-         chmod +x patch_linux
-         ./patch_linux
+          curl -LO https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.12.0/patch_linux
+          chmod +x patch_linux
+          ./patch_linux
+          mv oImage Image
          
       - name: Make AnyKernel3
         run: |
-         git clone https://github.com/Kernel-SU/AnyKernel3.git --depth=1      
-         rm -rf ./AnyKernel3/.git
-         rm -rf ./AnyKernel3/push.sh
-         cp ./kernel_workspace/kernel_platform/common/out/arch/arm64/boot/oImage ./AnyKernel3/Image
+          git clone https://github.com/Kernel-SU/AnyKernel3.git --depth=1      
+          rm -rf ./AnyKernel3/.git
+          rm -rf ./AnyKernel3/push.sh
+          cp ./kernel_workspace/kernel_platform/common/out/arch/arm64/boot/Image ./AnyKernel3/
 
       - name: Upload AnyKernel3
         uses: actions/upload-artifact@v4
