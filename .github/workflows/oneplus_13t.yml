@@ -2,29 +2,39 @@ name: OnePlus_13T
 on:
   workflow_dispatch:
     inputs:
+      enable_feature_change_suffix:
+        description: "是否启用内核名称修改"
+        required: false
+        default: false
+        type: boolean
       KERNEL_SUFFIX:
         description: '内核名称修改(可改中文和emoji)'
         required: true
         default: '-android15-8-gd43086512890-abogki423825152-4k'
+      enable_feature_change_build_time:
+        description: "是否启用内核名称修改"
+        required: false
+        default: false
+        type: boolean
       KERNEL_TIME:
-       description: "内核构建日期更改(默认为原厂)"
-       required: true
-       default: 'Tue Jun 10 12:12:23 UTC 2025'
+        description: "内核构建日期更改(默认为原厂)"
+        required: true
+        default: 'Tue Jun 10 12:12:23 UTC 2025'
       enable_feature_kpm:
-       description: "是否启用kpm"
-       required: false
-       default: false
-       type: boolean
+        description: "是否启用kpm"
+        required: false
+        default: false
+        type: boolean
       enable_feature_lz4kd:
-       description: "是否启用lz4kd"
-       required: false
-       default: true
-       type: boolean
+        description: "是否启用lz4kd"
+        required: false
+        default: true
+        type: boolean
       enable_feature_sched_ext:
-       description: "是否添加风驰驱动"
-       required: false
-       default: true
-       type: boolean
+        description: "是否添加风驰驱动"
+        required: false
+        default: true
+        type: boolean
       
 #  schedule:
 #    - cron: '0 22 * * *'
@@ -57,17 +67,16 @@ jobs:
          git config --global user.email ${{ secrets.USER_EMAIL }}
 
       - name: Install dependencies
-        run: |
-          sudo apt update && sudo apt install -y python3 git curl ccache zip libelf-dev
+        run: sudo apt update && sudo apt install -y python3 git curl ccache zip libelf-dev
 
-      - name: Compare Version
-        run: |
-          git clone --depth=1 https://github.com/SukiSU-Ultra/SukiSU-Ultra.git SUKI/
-          cd SUKI
-          KSU_GIT_VERSION=$(git rev-list --count HEAD)
-          KSU_VERSION=$((10000 + KSU_GIT_VERSION + 700))
-          LATEST_TAG=$(git ls-remote --tags https://github.com/MerCuJerry/oneplus_sm8750_sukisu.git | tail -n1 | sed 's/.*\///')
-          if [ $LATEST_TAG -eq $KSU_VERSION ];then exit 1;fi
+#      - name: Compare Version
+#        run: |
+#          git clone --depth=1 https://github.com/SukiSU-Ultra/SukiSU-Ultra.git -b susfs-main SUKI/
+#          cd SUKI
+#          KSU_GIT_VERSION=$(git rev-list --count HEAD)
+#          KSU_VERSION=$((10000 + KSU_GIT_VERSION + 700))
+#          LATEST_TAG=$(git ls-remote --tags https://github.com/MerCuJerry/oneplus_sm8750_sukisu.git | tail -n1 | sed 's/.*\///')
+#          if [ $LATEST_TAG -eq $KSU_VERSION ];then exit 1;fi
 
       - name: Restore ccache
         uses: actions/cache@v4
@@ -99,16 +108,8 @@ jobs:
          cd ./KernelSU
          export KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 10700)
          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-         sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile 
-         awk -v old='v$1-$(shell cd $(srctree)/$(src); $(GIT_BIN) rev-parse --short=8 HEAD)@$(shell cd $(srctree)/$(src); $(GIT_BIN) rev-parse --abbrev-ref HEAD)' -v new='v$1-$(KSU_VERSION)-main' '
-             index($0, old) {
-                 $0 = substr($0, 1, index($0, old)-1) new substr($0, index($0, old) + length(old))
-             }
-             { print }
-         ' kernel/Makefile > kernel/Makefile.tmp && mv kernel/Makefile.tmp kernel/Makefile
+         sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
-      
-        
       - name: Set up susfs
         run: |
            cd kernel_workspace
@@ -150,7 +151,12 @@ jobs:
         run: |
             cp ../../SukiSU_patch/other/zram/zram_patch/6.6/lz4kd.patch ./
             patch -p1 -F 3 < lz4kd.patch || true
-           
+
+      - name: Add KPM Configuration Settings
+        if: ${{ inputs.enable_feature_kpm }}
+        working-directory: ./kernel_workspace/kernel_platform
+        run: echo "CONFIG_KPM=y" >> ./common/arch/arm64/configs/gki_defconfig
+
       - name: Add SUSFS Configuration Settings
         working-directory: ./kernel_workspace/kernel_platform
         run: |
@@ -192,24 +198,15 @@ jobs:
           echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_TCP_CONG_HTCP=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_DEFAULT_TCP_CONG=bbr" >> ./common/arch/arm64/configs/gki_defconfig
-          
-          #Remove check_defconfig
-          sudo sed -i 's/check_defconfig//' ./common/build.config.gki
-          cd common
-          git add -A && git commit -a -m "BUILD Kernel"
-      
-      - name: Add KPM Configuration Settings
-        if: ${{ inputs.enable_feature_kpm }}
-        working-directory: ./kernel_workspace/kernel_platform
+        
+      - name: Remove check_defconfig
+        working-directory: ./kernel_workspace/kernel_platform/common
         run: |
-          echo "CONFIG_KPM=y" >> ./common/arch/arm64/configs/gki_defconfig
-         
-          #Remove check_defconfig
-          sudo sed -i 's/check_defconfig//' ./common/build.config.gki
-          cd common
+          sudo sed -i 's/check_defconfig//' ./build.config.gki
           git add -A && git commit -a -m "BUILD Kernel"
-          
-      - name: Add make name
+
+      - name: Change Kernel suffix
+        if: ${{ inputs.enable_feature_change_suffix }}
         working-directory: ./kernel_workspace/kernel_platform
         run: |
          sed -i 's/${scm_version}//' ./common/scripts/setlocalversion
@@ -222,12 +219,20 @@ jobs:
             git clone https://github.com/HanKuCha/sched_ext.git
             rm -rf ./sched_ext/.git
             cp -r ./sched_ext/* ./common/kernel/sched
-            cd common/kernel/sched
+
+      - name: Setting Timestamp
+        if: ${{ !inputs.enable_feature_change_build_time }}
+        run: |
+          export KBUILD_BUILD_TIMESTAMP=$(date)
+      
+      - name: Setting Changed Timestamp
+        if: ${{ !inputs.enable_feature_change_build_time }}
+        run: |
+          export KBUILD_BUILD_TIMESTAMP=${{ github.event.inputs.KERNEL_TIME }}
 
       - name: Build Kernel
         working-directory: ./kernel_workspace/kernel_platform/common
         env:
-            KBUILD_BUILD_TIMESTAMP: ${{ github.event.inputs.KERNEL_TIME }}
             args: |+
                 LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang
                 RUSTC=../../prebuilts/rust/linux-x86/1.73.0b/bin/rustc PAHOLE=../../prebuilts/kernel-build-tools/linux-x86/bin/pahole
@@ -236,7 +241,7 @@ jobs:
           export PATH=/usr/lib/ccache:$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts/clang/host/linux-x86/clang-r510928/bin:$PATH
           make -j$(nproc --all) ${args} gki_defconfig all
           
-      - name: Apply Linux Patch
+      - name: Apply KernelPatch for KPM
         if: ${{ inputs.enable_feature_kpm }}
         working-directory: kernel_workspace/kernel_platform/common/out/arch/arm64/boot
         run: |
