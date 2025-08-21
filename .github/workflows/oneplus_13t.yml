@@ -226,9 +226,9 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP=$(date)
       
       - name: Setting Changed Timestamp
-        if: ${{ !inputs.enable_feature_change_build_time }}
+        if: ${{ inputs.enable_feature_change_build_time }}
         run: |
-          export KBUILD_BUILD_TIMESTAMP=${{ github.event.inputs.KERNEL_TIME }}
+          export KBUILD_BUILD_TIMESTAMP="${{ github.event.inputs.KERNEL_TIME }}"
 
       - name: Build Kernel
         working-directory: ./kernel_workspace/kernel_platform/common
