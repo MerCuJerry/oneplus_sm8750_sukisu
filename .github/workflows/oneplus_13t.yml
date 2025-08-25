@@ -143,12 +143,6 @@ jobs:
           cd ../../../
           git add -A
           git commit -m "Add HMBird GKI patch" || true
-
-      - name: Update lz4
-        working-directory: ./kernel_workspace/kernel_platform/common
-        run: |
-          cp $GITHUB_WORKSPACE/SukiSU_patch/other/0001-lz4-Update-to-version-1.9.4.patch ./
-          patch -p1 -F 3 < 0001-lz4-Update-to-version-1.9.4.patch
             
       - name: Apply lz4kd Patch
         if: ${{ inputs.enable_feature_lz4kd }}
