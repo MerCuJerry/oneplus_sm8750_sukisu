@@ -148,7 +148,7 @@ jobs:
         working-directory: ./kernel_workspace/kernel_platform/common
         run: |
           cp $GITHUB_WORKSPACE/SukiSU_patch/other/other/0001-lz4-Update-to-version-1.9.4.patch ./
-          patch -p1 -F 3 < lz4kd.patch
+          patch -p1 -F 3 < 0001-lz4-Update-to-version-1.9.4.patch
             
       - name: Apply lz4kd Patch
         if: ${{ inputs.enable_feature_lz4kd }}
