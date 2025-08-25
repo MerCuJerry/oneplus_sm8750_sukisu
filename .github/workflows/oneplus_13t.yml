@@ -25,6 +25,11 @@ on:
         required: false
         default: false
         type: boolean
+      enable_feature_lz4k_oplus:
+        description: "是否启用lz4k_oplus"
+        required: false
+        default: true
+        type: boolean
       enable_feature_lz4kd:
         description: "是否启用lz4kd"
         required: false
@@ -102,36 +107,31 @@ jobs:
             
       - name: Set up SukiSU
         run: |
-         echo DATE=$(date +%F) >> $GITHUB_ENV
-         cd kernel_workspace/kernel_platform
-         curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
-         cd ./KernelSU
-         export KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 10700)
-         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-         sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+          echo DATE=$(date +%F) >> $GITHUB_ENV
+          cd kernel_workspace/kernel_platform
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
+          cd ./KernelSU
+          export KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 10700)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+      
+      - name: Pull SukiSU_Patch and susfs4ksu
+        run: |
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android15-6.6 --depth=1
+          git clone https://github.com/SukiSU-Ultra/SukiSU_patch.git --depth=1
 
       - name: Set up susfs
+        working-directory: ./kernel_workspace/kernel_platform/common
         run: |
-           cd kernel_workspace
-           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android15-6.6
-           git clone https://github.com/SukiSU-Ultra/SukiSU_patch.git
+          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
+          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/fs/* ./fs/
+          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+          # Apply patches
 
-           cd kernel_platform        
-           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./common/
-           cp ../susfs4ksu/kernel_patches/fs/* ./common/fs/
-           cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
-           #lz4k
-           cp -r ../SukiSU_patch/other/zram/lz4k/include/linux/* ./common/include/linux
-           cp -r ../SukiSU_patch/other/zram/lz4k/lib/* ./common/lib
-           cp -r ../SukiSU_patch/other/zram/lz4k/crypto/* ./common/crypto
-           cp -r ../SukiSU_patch/other/zram/lz4k_oplus ./common/lib/
-           # Apply patches
-           cd ./common
-
-           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-           cp ../../SukiSU_patch/hooks/syscall_hooks.patch ./
-           patch -p1 -F 3 < syscall_hooks.patch
-           echo "Done"
+          patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch
+          cp $GITHUB_WORKSPACE/SukiSU_patch/hooks/syscall_hooks.patch ./
+          patch -p1 -F 3 < syscall_hooks.patch
+          echo "Done"
       
       - name: Apply HMBird GKI patch
         working-directory: ./kernel_workspace/kernel_platform/common/drivers
@@ -144,60 +144,78 @@ jobs:
           git add -A
           git commit -m "Add HMBird GKI patch" || true
 
- 
-      - name: Apply lz4kd Patches
+      - name: Update lz4
+        working-directory: ./kernel_workspace/kernel_platform/common
+        run: |
+          cp $GITHUB_WORKSPACE/SukiSU_patch/other/other/0001-lz4-Update-to-version-1.9.4.patch ./
+          patch -p1 -F 3 < lz4kd.patch
+            
+      - name: Apply lz4kd Patch
         if: ${{ inputs.enable_feature_lz4kd }}
         working-directory: ./kernel_workspace/kernel_platform/common
         run: |
-            cp ../../SukiSU_patch/other/zram/zram_patch/6.6/lz4kd.patch ./
-            patch -p1 -F 3 < lz4kd.patch || true
+          #lz4k
+          cp -r $GITHUB_WORKSPACE/SukiSU_patch/other/zram/lz4k/include/linux/* ./include/linux
+          cp -r $GITHUB_WORKSPACE/SukiSU_patch/other/zram/lz4k/lib/* ./lib
+          cp -r $GITHUB_WORKSPACE/SukiSU_patch/other/zram/lz4k/crypto/* ./crypto
+          cp $GITHUB_WORKSPACE/SukiSU_patch/other/zram/zram_patch/6.6/lz4kd.patch ./
+          patch -p1 -F 3 < lz4kd.patch
+
+      - name: Apply lz4k_oplus Patch
+        if: ${{ inputs.enable_feature_lz4k_oplus }}
+        working-directory: ./kernel_workspace/kernel_platform/common
+        run: |
+          #lz4k_oplus
+          cp -r $GITHUB_WORKSPACE/SukiSU_patch/other/zram/lz4k_oplus ./lib/
+          cp $GITHUB_WORKSPACE/SukiSU_patch/other/zram/zram_patch/6.6/lz4k_oplus.patch ./
+          patch -p1 -F 3 < lz4k_oplus.patch
 
       - name: Add KPM Configuration Settings
         if: ${{ inputs.enable_feature_kpm }}
-        working-directory: ./kernel_workspace/kernel_platform
-        run: echo "CONFIG_KPM=y" >> ./common/arch/arm64/configs/gki_defconfig
+        working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs
+        run: echo "CONFIG_KPM=y" >> ./gki_defconfig
 
       - name: Add SUSFS Configuration Settings
-        working-directory: ./kernel_workspace/kernel_platform
+        working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs
         run: |
-          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU=y" >> ./gki_defconfig
 
           # Add VFS configuration settings
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./gki_defconfig
+          echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./gki_defconfig
           
           # Add SUSFS configuration settings
-          echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./gki_defconfig
           
-          echo "CONFIG_CRYPTO_LZ4HC=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_CRYPTO_LZ4K=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_CRYPTO_LZ4KD=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_CRYPTO_842=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_LOCALVERSION_AUTO=n" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_CRYPTO_LZ4HC=y" >> ./gki_defconfig
+          echo "CONFIG_CRYPTO_LZ4K=y" >> ./gki_defconfig
+          echo "CONFIG_CRYPTO_LZ4KD=y" >> ./gki_defconfig
+          echo "CONFIG_CRYPTO_842=y" >> ./gki_defconfig
+          echo "CONFIG_LOCALVERSION_AUTO=n" >> ./gki_defconfig
 
           # Add BBR
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_NET_SCH_FQ=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_BIC=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_CUBIC=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TCP_CONG_HTCP=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_DEFAULT_TCP_CONG=bbr" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./gki_defconfig
+          echo "CONFIG_TCP_CONG_BBR=y" >> ./gki_defconfig
+          echo "CONFIG_NET_SCH_FQ=y" >> ./gki_defconfig
+          echo "CONFIG_TCP_CONG_BIC=n" >> ./gki_defconfig
+          echo "CONFIG_TCP_CONG_CUBIC=n" >> ./gki_defconfig
+          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./gki_defconfig
+          echo "CONFIG_TCP_CONG_HTCP=n" >> ./gki_defconfig
+          echo "CONFIG_DEFAULT_TCP_CONG=bbr" >> ./gki_defconfig
         
       - name: Remove check_defconfig
         working-directory: ./kernel_workspace/kernel_platform/common
@@ -209,16 +227,16 @@ jobs:
         if: ${{ inputs.enable_feature_change_suffix }}
         working-directory: ./kernel_workspace/kernel_platform
         run: |
-         sed -i 's/${scm_version}//' ./common/scripts/setlocalversion
-         sudo sed -i 's/-4k/${{ github.event.inputs.KERNEL_SUFFIX }}/g' ./common/arch/arm64/configs/gki_defconfig
+          sed -i 's/${scm_version}//' ./common/scripts/setlocalversion
+          sudo sed -i 's/-4k/${{ github.event.inputs.KERNEL_SUFFIX }}/g' ./common/arch/arm64/configs/gki_defconfig
 
       - name: Add sched_ext
         if: ${{ inputs.enable_feature_sched_ext }}
         working-directory: ./kernel_workspace/kernel_platform
         run: |
-            git clone https://github.com/HanKuCha/sched_ext.git
-            rm -rf ./sched_ext/.git
-            cp -r ./sched_ext/* ./common/kernel/sched
+          git clone https://github.com/HanKuCha/sched_ext.git
+          rm -rf ./sched_ext/.git
+          cp -r ./sched_ext/* ./common/kernel/sched
 
       - name: Setting Timestamp
         if: ${{ !inputs.enable_feature_change_build_time }}
@@ -234,7 +252,8 @@ jobs:
             KBUILD_BUILD_TIMESTAMP: ${{ env.TIMESTAMP }}
             args: |+
                 LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang
-                RUSTC=../../prebuilts/rust/linux-x86/1.73.0b/bin/rustc PAHOLE=../../prebuilts/kernel-build-tools/linux-x86/bin/pahole
+                RUSTC=$GITHUB_WORKSPACE/kernel_workspace/prebuilts/rust/linux-x86/1.73.0b/bin/rustc
+                PAHOLE=$GITHUB_WORKSPACE/kernel_workspace/prebuilts/kernel-build-tools/linux-x86/bin/pahole
                 LD=ld.lld  HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS_PERF+=-O3
         run: |
           export PATH=/usr/lib/ccache:$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts/clang/host/linux-x86/clang-r510928/bin:$PATH
