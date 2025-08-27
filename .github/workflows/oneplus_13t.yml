@@ -212,7 +212,7 @@ jobs:
             echo "Enabled LZ4KD"
           fi
           if [ "${{ github.event.inputs.enable_feature_lz4k_oplus }}" = "true" ]; then
-            echo "CONFIG_CRYPTO_LZ4K_OPLUS=y" >> "$CONFIG_FILE"
+            echo "CONFIG_CRYPTO_LZ4K_OPLUS=y" >> ./gki_defconfig
             echo "Enabled LZ4K_OPLUS"
           fi
 
