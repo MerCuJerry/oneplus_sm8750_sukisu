@@ -164,10 +164,11 @@ jobs:
           cp $GITHUB_WORKSPACE/SukiSU_patch/other/zram/zram_patch/6.6/lz4k_oplus.patch ./
           patch -p1 -F 3 < lz4k_oplus.patch
 
-      - name: Add KPM Configuration Settings
-        if: ${{ inputs.enable_feature_kpm }}
-        working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs
-        run: echo "CONFIG_KPM=y" >> ./gki_defconfig
+      - name: Apply Hide_stuff Patch
+        working-directory: ./kernel_workspace/kernel_platform/common
+        run: |
+          cp $GITHUB_WORKSPACE/SukiSU_patch/69_hide_stuff.patch ./
+          patch -p1 -F 3 < 69_hide_stuff.patch
 
       - name: Add SUSFS Configuration Settings
         working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs
@@ -195,11 +196,25 @@ jobs:
           echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./gki_defconfig
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./gki_defconfig
           
+          # Zram Config
           echo "CONFIG_CRYPTO_LZ4HC=y" >> ./gki_defconfig
           echo "CONFIG_CRYPTO_LZ4K=y" >> ./gki_defconfig
-          echo "CONFIG_CRYPTO_LZ4KD=y" >> ./gki_defconfig
           echo "CONFIG_CRYPTO_842=y" >> ./gki_defconfig
-          echo "CONFIG_LOCALVERSION_AUTO=n" >> ./gki_defconfig
+
+          if [ "${{ github.event.inputs.enable_feature_lz4kd }}" = "true" ]; then
+            echo "CONFIG_CRYPTO_LZ4KD=y" >> ./gki_defconfig
+            echo "Enabled LZ4KD"
+          fi
+          if [ "${{ github.event.inputs.enable_feature_lz4k_oplus }}" = "true" ]; then
+            echo "CONFIG_CRYPTO_LZ4K_OPLUS=y" >> "$CONFIG_FILE"
+            echo "Enabled LZ4K_OPLUS"
+          fi
+
+          # Kpm Config
+          if [ "${{ github.event.inputs.enable_feature_kpm }}" = "true" ]; then
+            echo "CONFIG_KPM=y" >> ./gki_defconfig
+            echo "Enabled KPM"
+          fi
 
           # Add BBR
           echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./gki_defconfig
@@ -234,11 +249,12 @@ jobs:
 
       - name: Setting Timestamp
         if: ${{ !inputs.enable_feature_change_build_time }}
-        run: echo "TIMESTAMP=$(date)" >> $GITHUB_ENV
-      
-      - name: Setting Changed Timestamp
-        if: ${{ inputs.enable_feature_change_build_time }}
-        run: echo "TIMESTAMP=${{ github.event.inputs.KERNEL_TIME }}" >> $GITHUB_ENV
+        run: |
+          if [ "${{ inputs.enable_feature_change_build_time }}" = "true" ]; then
+            echo "TIMESTAMP=${{ github.event.inputs.KERNEL_TIME }}" >> $GITHUB_ENV
+          else
+            echo "TIMESTAMP=$(date)" >> $GITHUB_ENV
+          fi
 
       - name: Build Kernel
         working-directory: ./kernel_workspace/kernel_platform/common
