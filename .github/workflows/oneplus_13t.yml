@@ -20,6 +20,11 @@ on:
         description: "内核构建日期更改(默认为原厂)"
         required: true
         default: 'Tue Jun 10 12:12:23 UTC 2025'
+      enable_feature_hide_stuff:
+        description: "是否启用隐藏应用补丁"
+        required: false
+        default: true
+        type: boolean
       enable_feature_kpm:
         description: "是否启用kpm"
         required: false
@@ -165,6 +170,7 @@ jobs:
           patch -p1 -F 3 < lz4k_oplus.patch
 
       - name: Apply Hide_stuff Patch
+        if: ${{ inputs.enable_feature_hide_stuff }}
         working-directory: ./kernel_workspace/kernel_platform/common
         run: |
           cp $GITHUB_WORKSPACE/SukiSU_patch/69_hide_stuff.patch ./
