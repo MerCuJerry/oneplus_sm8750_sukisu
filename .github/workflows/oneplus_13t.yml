@@ -70,6 +70,8 @@ jobs:
           remove-codeql: 'true'
 
       - uses: actions/checkout@v5
+        with:
+          path: patch
 
       - name: Configure Git
         run: |
@@ -120,28 +122,29 @@ jobs:
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
       
-      - name: Pull SukiSU_Patch and susfs4ksu
+      - name: Pull SukiSU_Patch
+        uses: actions/checkout@v5
+        with:
+          repository: SukiSU-Ultra/SukiSU_patch
+
+      - name: Pull susfs4ksu
         run: |
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android15-6.6 --depth=1
-          git clone https://github.com/SukiSU-Ultra/SukiSU_patch.git --depth=1
 
       - name: Set up susfs
         working-directory: ./kernel_workspace/kernel_platform/common
         run: |
-          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
           cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/fs/* ./fs/
           cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           # Apply patches
 
-          patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch
-          cp $GITHUB_WORKSPACE/SukiSU_patch/hooks/syscall_hooks.patch ./
-          patch -p1 -F 3 < syscall_hooks.patch
-          echo "Done"
+          patch -p1 < $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch
+          patch -p1 -F 2 < $GITHUB_WORKSPACE/SukiSU_patch/hooks/syscall_hooks.patch
       
       - name: Apply HMBird GKI patch
         working-directory: ./kernel_workspace/kernel_platform/common/drivers
         run: |
-          cp $GITHUB_WORKSPACE/hmbird_patch.c ./
+          cp $GITHUB_WORKSPACE/patch/hmbird_patch.c ./
           if ! grep -q "hmbird_patch.o" Makefile; then
           echo "obj-y += hmbird_patch.o" >> Makefile
           fi
@@ -157,8 +160,7 @@ jobs:
           cp -r $GITHUB_WORKSPACE/SukiSU_patch/other/zram/lz4k/include/linux/* ./include/linux
           cp -r $GITHUB_WORKSPACE/SukiSU_patch/other/zram/lz4k/lib/* ./lib
           cp -r $GITHUB_WORKSPACE/SukiSU_patch/other/zram/lz4k/crypto/* ./crypto
-          cp $GITHUB_WORKSPACE/SukiSU_patch/other/zram/zram_patch/6.6/lz4kd.patch ./
-          patch -p1 -F 3 < lz4kd.patch
+          patch -p1 -F 2 < $GITHUB_WORKSPACE/SukiSU_patch/other/zram/zram_patch/6.6/lz4kd.patch
 
       - name: Apply lz4k_oplus Patch
         if: ${{ inputs.enable_feature_lz4k_oplus }}
@@ -166,15 +168,12 @@ jobs:
         run: |
           #lz4k_oplus
           cp -r $GITHUB_WORKSPACE/SukiSU_patch/other/zram/lz4k_oplus ./lib/
-          cp $GITHUB_WORKSPACE/SukiSU_patch/other/zram/zram_patch/6.6/lz4k_oplus.patch ./
-          patch -p1 -F 3 < lz4k_oplus.patch
+          patch -p1 -F 2 < $GITHUB_WORKSPACE/SukiSU_patch/other/zram/zram_patch/6.6/lz4k_oplus.patch
 
       - name: Apply Hide_stuff Patch
         if: ${{ inputs.enable_feature_hide_stuff }}
         working-directory: ./kernel_workspace/kernel_platform/common
-        run: |
-          cp $GITHUB_WORKSPACE/SukiSU_patch/69_hide_stuff.patch ./
-          patch -p1 -F 3 < 69_hide_stuff.patch
+        run: patch -p1 -F 2 < $GITHUB_WORKSPACE/SukiSU_patch/69_hide_stuff.patch
 
       - name: Add SUSFS Configuration Settings
         working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs
@@ -253,25 +252,20 @@ jobs:
           rm -rf ./sched_ext/.git
           cp -r ./sched_ext/* ./common/kernel/sched
 
-      - name: Setting Timestamp
-        if: ${{ !inputs.enable_feature_change_build_time }}
-        run: |
-          if [ "${{ inputs.enable_feature_change_build_time }}" = "true" ]; then
-            echo "TIMESTAMP=${{ github.event.inputs.KERNEL_TIME }}" >> $GITHUB_ENV
-          else
-            echo "TIMESTAMP=$(date)" >> $GITHUB_ENV
-          fi
-
       - name: Build Kernel
         working-directory: ./kernel_workspace/kernel_platform/common
         env:
-            KBUILD_BUILD_TIMESTAMP: ${{ env.TIMESTAMP }}
             args: |+
                 LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang
                 RUSTC=../../prebuilts/rust/linux-x86/1.73.0b/bin/rustc
                 PAHOLE=../../prebuilts/kernel-build-tools/linux-x86/bin/pahole
-                LD=ld.lld  HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS_PERF+=-O3
+                LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS_PERF+=-O3
         run: |
+          if [ "${{ inputs.enable_feature_change_build_time }}" = "true" ]; then
+            export KBUILD_BUILD_TIMESTAMP=${{ github.event.inputs.KERNEL_TIME }}
+          else
+            export KBUILD_BUILD_TIMESTAMP=$(date)
+          fi
           export PATH=/usr/lib/ccache:$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts/clang/host/linux-x86/clang-r510928/bin:$PATH
           make -j$(nproc --all) ${args} gki_defconfig all
           
