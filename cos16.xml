@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
+  <remove-project name="kernel_platform/common" />
+  <remove-project name="kernel_platform/msm-kernel" />
+  <remove-project name="android_kernel_modules_and_devicetree_oneplus_sm8750" />
+  
   <project remote="origin" name="android_kernel_common_oneplus_sm8750" path="kernel_platform/common" revision="oneplus/sm8750_v_16.0.0_oneplus_13t">
     <linkfile dest="kernel_platform/.source_date_epoch_dir" src="."/>
   </project>
