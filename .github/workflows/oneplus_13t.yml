@@ -140,17 +140,18 @@ jobs:
           patch -p1 -F 3 < syscall_hooks.patch
           echo "Done"
       
+      - name: Get HMBird GKI patch
+        uses: actions/checkout@v5
+        with:
+          repository: Numbersf/SCHED_PATCH
+          ref: sm8750
+          path: hmbird_patch
+              
       - name: Apply HMBird GKI patch
-        working-directory: ./kernel_workspace/kernel_platform/common/drivers
+        working-directory: ./kernel_workspace/kernel_platform/common/
         run: |
-          cp $GITHUB_WORKSPACE/hmbird_patch.c ./
-          if ! grep -q "hmbird_patch.o" Makefile; then
-          echo "obj-y += hmbird_patch.o" >> Makefile
-          fi
-          cd ../../../
-          git add -A
-          git commit -m "Add HMBird GKI patch" || true
-            
+          patch -p1 < $GITHUB_WORKSPACE/hmbird_patch/fengchi_oneplus_13t_w.patch
+
       - name: Apply lz4kd Patch
         if: ${{ inputs.enable_feature_lz4kd }}
         working-directory: ./kernel_workspace/kernel_platform/common
@@ -177,6 +178,20 @@ jobs:
         run: |
           cp $GITHUB_WORKSPACE/SukiSU_patch/69_hide_stuff.patch ./
           patch -p1 -F 3 < 69_hide_stuff.patch
+
+      - name: Add defconfig Configuration Settings
+        working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs
+        run: |
+          echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y" >> ./gki_defconfig
+          # Add BBR
+          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./gki_defconfig
+          echo "CONFIG_TCP_CONG_BBR=y" >> ./gki_defconfig
+          echo "CONFIG_NET_SCH_FQ=y" >> ./gki_defconfig
+          echo "CONFIG_TCP_CONG_BIC=n" >> ./gki_defconfig
+          echo "CONFIG_TCP_CONG_CUBIC=n" >> ./gki_defconfig
+          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./gki_defconfig
+          echo "CONFIG_TCP_CONG_HTCP=n" >> ./gki_defconfig
+          echo "CONFIG_DEFAULT_TCP_CONG=bbr" >> ./gki_defconfig
 
       - name: Add SUSFS Configuration Settings
         working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs
@@ -223,22 +238,11 @@ jobs:
             echo "CONFIG_KPM=y" >> ./gki_defconfig
             echo "Enabled KPM"
           fi
-
-          # Add BBR
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./gki_defconfig
-          echo "CONFIG_TCP_CONG_BBR=y" >> ./gki_defconfig
-          echo "CONFIG_NET_SCH_FQ=y" >> ./gki_defconfig
-          echo "CONFIG_TCP_CONG_BIC=n" >> ./gki_defconfig
-          echo "CONFIG_TCP_CONG_CUBIC=n" >> ./gki_defconfig
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./gki_defconfig
-          echo "CONFIG_TCP_CONG_HTCP=n" >> ./gki_defconfig
-          echo "CONFIG_DEFAULT_TCP_CONG=bbr" >> ./gki_defconfig
         
       - name: Remove check_defconfig
         working-directory: ./kernel_workspace/kernel_platform/common
         run: |
           sudo sed -i 's/check_defconfig//' ./build.config.gki
-          git add -A && git commit -a -m "BUILD Kernel"
 
       - name: Change Kernel suffix
         if: ${{ inputs.enable_feature_change_suffix }}
@@ -247,13 +251,13 @@ jobs:
           sed -i 's/${scm_version}//' ./common/scripts/setlocalversion
           sudo sed -i 's/-4k/${{ github.event.inputs.KERNEL_SUFFIX }}/g' ./common/arch/arm64/configs/gki_defconfig
 
-      - name: Add sched_ext
-        if: ${{ inputs.enable_feature_sched_ext }}
-        working-directory: ./kernel_workspace/kernel_platform
-        run: |
-          git clone https://github.com/HanKuCha/sched_ext.git
-          rm -rf ./sched_ext/.git
-          cp -r ./sched_ext/* ./common/kernel/sched
+      # - name: Add sched_ext
+      #   if: ${{ inputs.enable_feature_sched_ext }}
+      #   working-directory: ./kernel_workspace/kernel_platform
+      #   run: |
+      #     git clone https://github.com/HanKuCha/sched_ext.git
+      #     rm -rf ./sched_ext/.git
+      #     cp -r ./sched_ext/* ./common/kernel/sched
 
       - name: Build Kernel
         working-directory: ./kernel_workspace/kernel_platform/common
