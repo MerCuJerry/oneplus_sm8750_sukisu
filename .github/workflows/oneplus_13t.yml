@@ -133,7 +133,7 @@ jobs:
           git clone https://github.com/SukiSU-Ultra/SukiSU_patch.git --depth=1
 
       - name: Set up susfs
-        working-directory: ./kernel_workspace/kernel_platform/common
+        working-directory: kernel_workspace/kernel_platform/common
         run: |
           cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
           cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/fs/* ./fs/
@@ -155,13 +155,13 @@ jobs:
               
       - name: Apply HMBird GKI patch
         if: ${{ inputs.enable_feature_sched_ext }}
-        working-directory: ./kernel_workspace/kernel_platform/common
+        working-directory: kernel_workspace/kernel_platform/common
         run: |
           patch -p1 < $GITHUB_WORKSPACE/hmbird_patch/fengchi_oneplus_13t_w.patch
 
       - name: Apply lz4kd Patch
         if: ${{ inputs.enable_feature_lz4kd }}
-        working-directory: ./kernel_workspace/kernel_platform/common
+        working-directory: kernel_workspace/kernel_platform/common
         run: |
           #lz4k
           cp -r $GITHUB_WORKSPACE/SukiSU_patch/other/zram/lz4k/include/linux/* ./include/linux
@@ -172,7 +172,7 @@ jobs:
 
       - name: Apply lz4k_oplus Patch
         if: ${{ inputs.enable_feature_lz4k_oplus }}
-        working-directory: ./kernel_workspace/kernel_platform/common
+        working-directory: kernel_workspace/kernel_platform/common
         run: |
           #lz4k_oplus
           cp -r $GITHUB_WORKSPACE/SukiSU_patch/other/zram/lz4k_oplus ./lib/
@@ -181,26 +181,26 @@ jobs:
 
       - name: Apply Hide_stuff Patch
         if: ${{ inputs.enable_feature_hide_stuff }}
-        working-directory: ./kernel_workspace/kernel_platform/common
+        working-directory: kernel_workspace/kernel_platform/common
         run: |
           cp $GITHUB_WORKSPACE/SukiSU_patch/69_hide_stuff.patch ./
           patch -p1 -F 3 < 69_hide_stuff.patch
         
       - name: Apply BBG
         if: ${{ github.event.inputs.enable_feature_bbg }}
-        working-directory: ./kernel_workspace/kernel_platform/common
+        working-directory: kernel_workspace/kernel_platform/common
         run: |
           curl -LSs https://raw.githubusercontent.com/vc-teahouse/Baseband-guard/main/setup.sh | bash
           sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/lockdown/lockdown,baseband_guard/ } }' ./security/Kconfig
       
       - name: Add BBG defconfig Configuration Settings
         if: ${{ github.event.inputs.enable_feature_bbg }}
-        working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs
+        working-directory: kernel_workspace/kernel_platform/common/arch/arm64/configs
         run: |
           echo "CONFIG_BBG=y" >> ./gki_defconfig
 
       - name: Add defconfig Configuration Settings
-        working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs
+        working-directory: kernel_workspace/kernel_platform/common/arch/arm64/configs
         run: |
           echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y" >> ./gki_defconfig
           # Add BBR
@@ -214,7 +214,7 @@ jobs:
           echo "CONFIG_DEFAULT_TCP_CONG=bbr" >> ./gki_defconfig
 
       - name: Add SUSFS Configuration Settings
-        working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs
+        working-directory: kernel_workspace/kernel_platform/common/arch/arm64/configs
         run: |
           echo "CONFIG_KSU=y" >> ./gki_defconfig
 
@@ -261,19 +261,19 @@ jobs:
           fi
         
       - name: Remove check_defconfig
-        working-directory: ./kernel_workspace/kernel_platform/common
+        working-directory: kernel_workspace/kernel_platform/common
         run: |
           sudo sed -i 's/check_defconfig//' ./build.config.gki
 
       - name: Change Kernel suffix
         if: ${{ inputs.enable_feature_change_suffix }}
-        working-directory: ./kernel_workspace/kernel_platform
+        working-directory: kernel_workspace/kernel_platform
         run: |
           sed -i 's/${scm_version}//' ./common/scripts/setlocalversion
           sudo sed -i 's/-4k/${{ github.event.inputs.KERNEL_SUFFIX }}/g' ./common/arch/arm64/configs/gki_defconfig
 
       - name: Enable lto=thin For FAST
-        working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs/gki_defconfig
+        working-directory: kernel_workspace/kernel_platform/common/arch/arm64/configs
         run: |
           sed -i 's/^CONFIG_LTO=n/CONFIG_LTO=y/' gki_defconfig
           sed -i 's/^CONFIG_LTO_CLANG_FULL=y/CONFIG_LTO_CLANG_THIN=y/' gki_defconfig
@@ -281,7 +281,7 @@ jobs:
           grep -q '^CONFIG_LTO_CLANG_THIN=y' gki_defconfig || echo 'CONFIG_LTO_CLANG_THIN=y' >> gki_defconfig
 
       - name: Build Kernel
-        working-directory: ./kernel_workspace/kernel_platform/common
+        working-directory: kernel_workspace/kernel_platform/common
         env:
             args: |+
                 LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang
