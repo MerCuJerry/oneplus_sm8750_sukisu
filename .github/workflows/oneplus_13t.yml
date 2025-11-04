@@ -224,6 +224,7 @@ jobs:
           
           # Add SUSFS configuration settings
           echo "CONFIG_KSU_SUSFS=y" >> ./gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MAP=y" >> ./gki_defconfig
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./gki_defconfig
@@ -271,6 +272,14 @@ jobs:
           sed -i 's/${scm_version}//' ./common/scripts/setlocalversion
           sudo sed -i 's/-4k/${{ github.event.inputs.KERNEL_SUFFIX }}/g' ./common/arch/arm64/configs/gki_defconfig
 
+      - name: Enable lto=thin For FAST
+        working-directory: ./kernel_workspace/kernel_platform/common/arch/arm64/configs/gki_defconfig
+        run: |
+          sed -i 's/^CONFIG_LTO=n/CONFIG_LTO=y/' gki_defconfig
+          sed -i 's/^CONFIG_LTO_CLANG_FULL=y/CONFIG_LTO_CLANG_THIN=y/' gki_defconfig
+          sed -i 's/^CONFIG_LTO_CLANG_NONE=y/CONFIG_LTO_CLANG_THIN=y/' gki_defconfig
+          grep -q '^CONFIG_LTO_CLANG_THIN=y' gki_defconfig || echo 'CONFIG_LTO_CLANG_THIN=y' >> gki_defconfig
+
       - name: Build Kernel
         working-directory: ./kernel_workspace/kernel_platform/common
         env:
@@ -280,13 +289,18 @@ jobs:
                 PAHOLE=../../prebuilts/kernel-build-tools/linux-x86/bin/pahole
                 LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS_PERF+=-O3
         run: |
+          if [[ -f ./build.config.arm ]] && grep -q '^LLVM_IAS=1' ./build.config.arm; then
+            LLVM_IAS="LLVM_IAS=1"
+          else
+            LLVM_IAS=""
+          fi
           if [ "${{ inputs.enable_feature_change_build_time }}" = "true" ]; then
             export KBUILD_BUILD_TIMESTAMP=${{ github.event.inputs.KERNEL_TIME }}
           else
             export KBUILD_BUILD_TIMESTAMP=$(date)
           fi
           export PATH=/usr/lib/ccache:$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/prebuilts/clang/host/linux-x86/clang-r510928/bin:$PATH
-          make -j$(nproc --all) ${args} gki_defconfig all
+          make -j$(nproc --all) ${LLVM_IAS} ${args} gki_defconfig all
           
       - name: Apply KernelPatch for KPM
         if: ${{ inputs.enable_feature_kpm }}
