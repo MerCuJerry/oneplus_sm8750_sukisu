@@ -187,14 +187,14 @@ jobs:
           patch -p1 -F 3 < 69_hide_stuff.patch
         
       - name: Apply BBG
-        if: ${{ github.event.inputs.enable_feature_bbg }}
+        if: ${{ inputs.enable_feature_bbg }}
         working-directory: kernel_workspace/kernel_platform/common
         run: |
           curl -LSs https://raw.githubusercontent.com/vc-teahouse/Baseband-guard/main/setup.sh | bash
           sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/lockdown/lockdown,baseband_guard/ } }' ./security/Kconfig
       
       - name: Add BBG defconfig Configuration Settings
-        if: ${{ github.event.inputs.enable_feature_bbg }}
+        if: ${{ inputs.enable_feature_bbg }}
         working-directory: kernel_workspace/kernel_platform/common/arch/arm64/configs
         run: |
           echo "CONFIG_BBG=y" >> ./gki_defconfig
