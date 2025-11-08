@@ -154,7 +154,7 @@ jobs:
         if: ${{ inputs.enable_feature_sched_ext }}
         working-directory: kernel_workspace/kernel_platform/common
         run: |
-          patch -p1 < $GITHUB_WORKSPACE/hmbird_patch/fengchi_oneplus_13t_w.patch
+          patch -p1 < $GITHUB_WORKSPACE/hmbird_patch/fengchi_oneplus_13t_b.patch
 
       - name: Apply lz4kd Patch
         if: ${{ inputs.enable_feature_lz4kd }}
