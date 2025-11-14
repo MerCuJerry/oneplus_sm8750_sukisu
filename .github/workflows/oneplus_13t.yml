@@ -43,7 +43,7 @@ on:
       enable_feature_bbg:
         description: "是否启用内核级基带保护支持"
         required: false
-        default: true
+        default: false
         type: boolean
       enable_feature_sched_ext:
         description: "是否添加风驰驱动"
@@ -110,9 +110,7 @@ jobs:
       - name: Initialize repo and sync
         run: |
           mkdir kernel_workspace && cd kernel_workspace
-          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/sm8750 -m oneplus_13t.xml --depth=1
-          mkdir -p .repo/local_manifests
-          cp $GITHUB_WORKSPACE/cos16.xml .repo/local_manifests/
+          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/sm8750 -m oneplus_13t_b.xml --depth=1
           repo --trace sync -c -j$(nproc --all) --no-tags
           rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
           rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
@@ -140,7 +138,7 @@ jobs:
           # Apply patches
 
           patch -p1 < $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch
-          patch -p1 -F 3 < $GITHUB_WORKSPACE/SukiSU_patch/hooks/scope_min_manual_hooks_v1.6.patch
+          patch -p1 < $GITHUB_WORKSPACE/SukiSU_patch/hooks/scope_min_manual_hooks_v1.6.patch
       
       - name: Get HMBird GKI patch
         if: ${{ inputs.enable_feature_sched_ext }}
@@ -154,7 +152,7 @@ jobs:
         if: ${{ inputs.enable_feature_sched_ext }}
         working-directory: kernel_workspace/kernel_platform/common
         run: |
-          patch -p1 < $GITHUB_WORKSPACE/hmbird_patch/fengchi_oneplus_13t_w.patch
+          patch -p1 < $GITHUB_WORKSPACE/hmbird_patch/fengchi_oneplus_13t_b.patch
 
       - name: Apply lz4kd Patch
         if: ${{ inputs.enable_feature_lz4kd }}
