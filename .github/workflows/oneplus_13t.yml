@@ -43,7 +43,7 @@ on:
       enable_feature_bbg:
         description: "是否启用内核级基带保护支持"
         required: false
-        default: true
+        default: false
         type: boolean
       enable_feature_sched_ext:
         description: "是否添加风驰驱动"
@@ -138,7 +138,7 @@ jobs:
           # Apply patches
 
           patch -p1 < $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch
-          patch -p1 -F 3 < $GITHUB_WORKSPACE/SukiSU_patch/hooks/scope_min_manual_hooks_v1.6.patch
+          patch -p1 < $GITHUB_WORKSPACE/SukiSU_patch/hooks/scope_min_manual_hooks_v1.6.patch
       
       - name: Get HMBird GKI patch
         if: ${{ inputs.enable_feature_sched_ext }}
