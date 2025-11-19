@@ -129,6 +129,11 @@ jobs:
         run: |
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android15-6.6 --depth=1
           git clone https://github.com/SukiSU-Ultra/SukiSU_patch.git --depth=1
+
+      - name: Sukisu Patch
+        working-directory: kernel_workspace/kernel_platform/common
+        run: |
+          patch -p1 < $GITHUB_WORKSPACE/SukiSU_patch/hooks/scope_min_manual_hooks_v1.6.patch
   
       - name: Set up susfs
         working-directory: kernel_workspace/kernel_platform/common
@@ -137,12 +142,7 @@ jobs:
           cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           # Apply patches
 
-          patch -p1 -F 3 < $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch
-  
-      - name: Sukisu Patch
-        working-directory: kernel_workspace/kernel_platform/common
-        run: |
-          patch -p1 < $GITHUB_WORKSPACE/SukiSU_patch/hooks/scope_min_manual_hooks_v1.6.patch
+          patch -p1 < $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch || true
 
       - name: Get HMBird GKI patch
         if: ${{ inputs.enable_feature_sched_ext }}
