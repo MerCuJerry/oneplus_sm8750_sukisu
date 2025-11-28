@@ -187,57 +187,10 @@ jobs:
           curl -LSs https://raw.githubusercontent.com/vc-teahouse/Baseband-guard/main/setup.sh | bash
           sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/lockdown/lockdown,baseband_guard/ } }' ./security/Kconfig
       
-      - name: Add BBG defconfig Configuration Settings
-        if: ${{ inputs.enable_feature_bbg }}
-        working-directory: kernel_workspace/kernel_platform/common/arch/arm64/configs
-        run: |
-          echo "CONFIG_BBG=y" >> ./gki_defconfig
-
-      - name: Add defconfig Configuration Settings
-        working-directory: kernel_workspace/kernel_platform/common/arch/arm64/configs
-        run: |
-          echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y" >> ./gki_defconfig
-          # Add BBR
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./gki_defconfig
-          echo "CONFIG_TCP_CONG_BBR=y" >> ./gki_defconfig
-          echo "CONFIG_NET_SCH_FQ=y" >> ./gki_defconfig
-          echo "CONFIG_TCP_CONG_BIC=n" >> ./gki_defconfig
-          echo "CONFIG_TCP_CONG_CUBIC=n" >> ./gki_defconfig
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./gki_defconfig
-          echo "CONFIG_TCP_CONG_HTCP=n" >> ./gki_defconfig
-          echo "CONFIG_DEFAULT_TCP_CONG=bbr" >> ./gki_defconfig
-
       - name: Add SUSFS Configuration Settings
         working-directory: kernel_workspace/kernel_platform/common/arch/arm64/configs
         run: |
-          echo "CONFIG_KSU=y" >> ./gki_defconfig
-
-          # Add VFS configuration settings
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./gki_defconfig
-          echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./gki_defconfig
-          
-          # Add SUSFS configuration settings
-          echo "CONFIG_KSU_SUSFS=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MAP=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./gki_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./gki_defconfig
-          
-          # Zram Config
-          echo "CONFIG_CRYPTO_LZ4HC=y" >> ./gki_defconfig
-          echo "CONFIG_CRYPTO_LZ4K=y" >> ./gki_defconfig
-          echo "CONFIG_CRYPTO_842=y" >> ./gki_defconfig
+          cat $GITHUB_WORKSPACE/defconfig_append >> ./gki_defconfig
 
           if [ "${{ github.event.inputs.enable_feature_lz4kd }}" = "true" ]; then
             echo "CONFIG_CRYPTO_LZ4KD=y" >> ./gki_defconfig
@@ -247,11 +200,14 @@ jobs:
             echo "CONFIG_CRYPTO_LZ4K_OPLUS=y" >> ./gki_defconfig
             echo "Enabled LZ4K_OPLUS"
           fi
-
           # Kpm Config
           if [ "${{ github.event.inputs.enable_feature_kpm }}" = "true" ]; then
             echo "CONFIG_KPM=y" >> ./gki_defconfig
             echo "Enabled KPM"
+          fi
+          if [ "${{ github.event.inputs.enable_feature_bbg }}" = "true" ]; then
+            echo "CONFIG_BBG=y" >> ./gki_defconfig
+            echo "Enabled BBG"
           fi
         
       - name: Remove check_defconfig
