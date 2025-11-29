@@ -123,6 +123,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: SukiSU-Ultra/SukiSU_patch
+          path: SukiSU_patch
 
       - name: Apply lz4kd Patch
         working-directory: kernel_workspace/kernel_platform/common
@@ -178,6 +179,7 @@ jobs:
         working-directory: kernel_workspace/kernel_platform/common/arch/arm64/configs
         run: |
           cat $GITHUB_WORKSPACE/defconfig_append >> ./gki_defconfig
+          echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./gki_defconfig
 
           if [ "${{ github.event.inputs.enable_feature_lz4kd }}" = "true" ]; then
             echo "CONFIG_CRYPTO_LZ4KD=y" >> ./gki_defconfig
