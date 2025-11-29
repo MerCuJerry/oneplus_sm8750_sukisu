@@ -233,7 +233,7 @@ jobs:
                 LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS_PERF+=-O3
         run: |
           if [ "${{ inputs.enable_feature_change_build_time }}" = "true" ]; then
-            export KBUILD_BUILD_TIMESTAMP=${{ github.event.inputs.KERNEL_TIME }}
+            export KBUILD_BUILD_TIMESTAMP="${{ github.event.inputs.KERNEL_TIME }}"
           else
             export KBUILD_BUILD_TIMESTAMP=$(date)
           fi
