@@ -125,7 +125,7 @@ jobs:
           repository: SukiSU-Ultra/SukiSU_patch
           path: SukiSU_patch
 
-      - name: Apply lz4kd Patch
+      - name: Apply scope_min_manual_hooks Patch
         working-directory: kernel_workspace/kernel_platform/common
         run: |
           patch -p1 < $GITHUB_WORKSPACE/SukiSU_patch/hooks/scope_min_manual_hooks_v1.6.patch
